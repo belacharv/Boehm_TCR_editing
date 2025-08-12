@@ -25,7 +25,7 @@ library(tibble)
   ## count table
 df_unique <- finalResult %>%
   distinct(Sample.bio.name, .keep_all = TRUE)
-df <- data.frame(ID = c(1:length(samples_names)),df_unique[,c(29,26,25,27)])
+df <- data.frame(ID = c(1:length(samples_names)),df_unique[,c(29,26,25,27,15)])
 dfT <- t(df)
 dfT <- data.frame(dfT)
 dfT <- rownames_to_column(dfT,"aa_seq")
@@ -51,14 +51,19 @@ for (name in samples_names) {
 }
 
 ## testing
-sample_name = samples_names[1]
-sample_table <- filter(finalResult, finalResult$Sample.bio.name == sample_name)
+#sample_name = samples_names[1]
+#sample_table <- filter(finalResult, finalResult$Sample.bio.name == sample_name)
 
+
+
+#Seq_count_sample <- rbind(Seq_count_sample,c("he",0))
 # function filling the count table with umi
 umiCountSample <- function(sample_name, countTable, umiValue) {
   sample_table <- filter(finalResult, finalResult$Sample.bio.name == sample_name)
   #print(paste(sample_name,nrow(sample_table)))
-  print(nrow(sample_table))
+  #print(nrow(sample_table))
+  #Seq_count_sample <- rbind(Seq_count_sample, c(sample_name,nrow(sample_table)))
+  
   for (aaseq in 1:nrow(sample_table)) {
     nameSeq <- sample_table$CDR3.amino.acid.sequence[aaseq]
     value <- sample_table$Umi.count[aaseq]
@@ -82,6 +87,7 @@ for (sample in samples_names){
   #print(paste("done",sample))
 }
 
+
 #write_csv(count_Table1, "250505_count_table_seq_samples.csv")
 #write.xlsx(count_Table1, "250505_count_table_seq_samples.xlsx")
 
@@ -98,8 +104,8 @@ countTable <- count_Table1
 rownames(countTable) <- count_Table1$aa_seq
 #countTable <- countTable[-1]
 countTableFinal <- rbind(countTable,dfT)
-colnames(dfT)
-colnames(countTable)
+#colnames(dfT)
+#colnames(countTable)
 
 #write_csv(countTableFinal, "250626_count_table_with_metadata.csv")
 #write.xlsx(countTableFinal, "250626_count_table_with_metadata.xlsx")
@@ -111,21 +117,55 @@ colnames(countTable)
 # we want to get rid of the thymus samples
 countTableSpleen <- count_Table2[,-excludeColList]
 
+Seq_count_sample <- data.frame(df)
+Seq_count_sample <- mutate(Seq_count_sample,seq_count = 0)
+
+excluderows <- c()
+for(i in 1:nrow(Seq_count_sample)){
+  print(i)
+  if(Seq_count_sample[[i,3]] == "T" || 
+     is.na(Seq_count_sample[[i,4]])  ||
+     Seq_count_sample[[i,4]] == "DN" ||
+     Seq_count_sample[[i,4]] == "DP"){
+    excluderows[length(excluderows)+1] <- i
+    
+  }
+}
+Seq_count_sample <- Seq_count_sample[-excluderows,]
+
+for (sample in Seq_count_sample$Sample.bio.name) {
+  sample_table <- filter(finalResult, finalResult$Sample.bio.name == sample)
+  print(nrow(sample_table))
+  Seq_count_sample$seq_count[Seq_count_sample$Sample.bio.name == sample] <- nrow(sample_table)
+}
+#Seq_count_sample<- Seq_count_sample[-1,]
+#write_csv(Seq_count_sample, "250808_3b_seq_number_spleen_samples.csv")
+
+samples_to_exclude <- Seq_count_sample %>%
+ filter(cell == "CD4") %>%
+  slice_min(order_by = seq_count,n=5)
+  #which(low_seq_count_filtr$tissue == "CD4")
+countTableSpleen.filtr <- countTableSpleen[,!(colnames(countTableSpleen) %in% samples_to_exclude$Sample.bio.name)]
+countTableSpleen <- countTableSpleen.filtr
+
 countTableSpleen <- countTableSpleen %>% 
   mutate(Occurrence = rowSums(countTableSpleen[,2:ncol(countTableSpleen)])) %>%
   filter(Occurrence > 1) %>% # only seqs that are Occurring in multiple samples
   filter(!grepl("\\*", aa_seq)) # get rid of the unproductive seqs
 
-group <- as.character(dfT[4,-c(1,excludeColList)])  
+dfT <- dfT %>% mutate(Occurrence = NA)
+dfTSpleen <- dfT[,-excludeColList]
+dfTSpleen <- dfTSpleen[,!(colnames(dfTSpleen) %in% samples_to_exclude$Sample.bio.name)]
+colnames(dfTSpleen)
+colnames(countTableSpleen)
+countTableSpleen <- rbind(countTableSpleen,dfTSpleen) # add metadata to the table
+No_of_samples <- ncol(dfTSpleen)-2
+
+group <- as.character(dfTSpleen[4,])  
 cd4_samples <- which(group == "CD4")
 cd8_samples <- which(group == "CD8")
 
-dfT <- dfT %>% mutate(Occurrence = NA)
-dfTSpleen <- dfT[,-excludeColList]
-countTableSpleen <- rbind(countTableSpleen,dfTSpleen) # add metadata to the table
-
-
-colnames(dfT)
+#colnames(dfT)
 colnames(countTableSpleen)
 
 countTableSpleen <- countTableSpleen %>% 
@@ -133,9 +173,9 @@ countTableSpleen <- countTableSpleen %>%
   mutate(Occurr_CD8 = 0)
 
 
-No_of_samples <- length(samples_names) - length(excludeColList)
+#No_of_samples <- length(samples_names) - length(excludeColList)
 sample_cols <- 2:(No_of_samples+1)
-sample_data <- countTableSpleen[, sample_cols]
+sample_data <- cbind(0,countTableSpleen[, sample_cols])
 sample_data <- as.data.frame(lapply(sample_data, as.numeric))
 
 countTableSpleen$Occurr_CD4 <- rowSums(sample_data[, cd4_samples] > 0)
@@ -160,19 +200,19 @@ countTableSpleen <- countTableSpleen %>%
   #arrange(Dominant_pheno)
 #countTableSpleen$Commit_accuracy <- round(countTableSpleen$Commit_accuracy, digits = 2)
   
-mean(countTableSpleen$Commit_accuracy[1:(nrow(countTableSpleen)-5)])
+mean(countTableSpleen$Commit_accuracy[1:(nrow(countTableSpleen)-6)])
 
 countTableSpleen$Commit_accuracy <- round(countTableSpleen$Commit_accuracy, digits = 2)
 
-weighted_avg <- weighted.mean(countTableSpleen$Commit_accuracy, countTableSpleen$Occurrence, na.rm = TRUE)
+weighted_avg <- weighted.mean(countTableSpleen$Commit_accuracy[1:(nrow(countTableSpleen)-6)], countTableSpleen$Occurrence[1:(nrow(countTableSpleen)-6)], na.rm = TRUE)
 weighted_avg
 seqCommitCounts <- data.frame("strictly_CD4" = length(which(countTableSpleen$Occurr_CD8 == 0)), 
                               "strictly_CD8" = length(which(countTableSpleen$Occurr_CD4 == 0)), 
-                              "both" = nrow(countTableSpleen) - length(which(countTableSpleen$Occurr_CD8 == 0)) - length(which(countTableSpleen$Occurr_CD4 == 0))-5)
+                              "both" = nrow(countTableSpleen) - length(which(countTableSpleen$Occurr_CD8 == 0)) - length(which(countTableSpleen$Occurr_CD4 == 0))-6)
 
 
 #write_csv(countTableSpleen, "250714_3b_commit_accuracy_non-unique_seq_spleen.csv")
-
+#write_csv(countTableSpleen,"250808_3a_commit_accuracy_same_no_of_cd4_cd8.csv")
 
 ################################################################################
 ### WILL NOT BE USED ###
