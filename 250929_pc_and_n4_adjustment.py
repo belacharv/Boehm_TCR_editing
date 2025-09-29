@@ -152,7 +152,7 @@ if __name__ == "__main__":
     print("Testing with different Pc values:")
     print("="*60)
     
-    test_pc_values = [0.91, 0.915, 0.9151860764850289, 0.92, 0.95]
+    test_pc_values = [0.6,0.7,0.8,0.88,0.89,0.9,0.91, 0.9151860764850289, 0.92, 0.93]
     
     for pc in test_pc_values:
         n4 = calculate_n4_for_pc(pc, chain="a")
