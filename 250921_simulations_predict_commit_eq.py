@@ -63,7 +63,7 @@ def print_results(pc,true_n4,i):
         print(f"Mean n4 error: {df_recovery['error_n4'].mean():.4f} ± {df_recovery['error_n4'].std():.4f}")
         print(f"Mean cd4_cd4 error: {df_recovery['error_cd4_cd4'].mean():.4f} ± {df_recovery['error_cd4_cd4'].std():.4f}")
         name = str(i)+"_pc_"+str(pc)+"_simulations.csv"
-        df_recovery.to_csv(name, index=False)
+        #df_recovery.to_csv(name, index=False)
 
         fitted_Pc = df_recovery['fitted_Pc']
 
@@ -120,19 +120,21 @@ def print_results(pc,true_n4,i):
 true_Pc = 0.9151860764850289 #0.8311920832252657 
 #i = 1
 pc = 0.91
+pc_i = 0.94
 #i = 1
-true_n4 = 372 #107
-true_n8 = 14 #7
+true_n4 = 360 # 372 #107
+true_n8 = 26 # 14 #7
 total_seq = true_n4 + true_n8
 ci = []
 df_ci = pd.DataFrame(ci)
 
 print(f"Simulations of Pc = {true_Pc}")
 print("="*60)
-model = TcellLineageModel(true_Pc, true_n4, total_seq, "a")
-df_new = print_results(true_Pc, true_n4,0) 
-df_ci = pd.concat([df_ci,df_new],ignore_index=True)
-
+#model = TcellLineageModel(true_Pc, true_n4, total_seq, "a")
+#df_new = print_results(true_Pc, true_n4,0) 
+#df_ci = pd.concat([df_ci,df_new],ignore_index=True)
+"""
+# we change pc every
 for i in range(12,22):
     print(f"Simulations of Pc = {pc}")
     print("="*60)
@@ -140,10 +142,10 @@ for i in range(12,22):
     print(f"True parameters: Pc = {pc}, n4 = {true_n4}")
     df_ci_new_row = print_results(pc,true_n4,i)
     df_ci = pd.concat([df_ci,df_ci_new_row],ignore_index=True)
-    pc = pc + 0.01
-   
-#model = TcellLineageModel(true_Pc, true_n4, total_seq, "a")
-#df_new = print_results(true_Pc, true_n4,12) 
-#df_ci = pd.DataFrame(ci)
+    pc = pc + 0.01 # if we want to decrease, we need to adjust this
+"""   
+model = TcellLineageModel(pc_i, true_n4, total_seq, "a")
+df_new = print_results(pc_i, true_n4,12) 
+df_ci = pd.DataFrame(ci)
 print(df_ci)
-df_ci.to_csv("250923_ci_simulations_table_new.csv", index=False)
+#df_ci.to_csv("250923_ci_simulations_table_new.csv", index=False)
