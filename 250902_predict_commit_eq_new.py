@@ -154,7 +154,7 @@ print("VALIDATION STUDY 1: Parameter Recovery")
 print("="*60)
 
 # Test with known parameters
-true_Pc = 0.88#0.915186
+true_Pc = 0.915186
 true_n4 = 372
 true_n8 = 14
 model = TcellLineageModel(true_Pc, true_n4)

@@ -1,5 +1,6 @@
 # SUBSTITUTING N4 AND LOOKING AT PC
 import sympy as sp
+import pandas as pd
 
 #n4 = 337
 # Observed counts
@@ -37,64 +38,78 @@ def solvingEq(n4,chain):
     p8_88 = Pc**2 * c88
     p8_total = p8_44 + p8_48 + p8_88
 
-    solutions = []
     # Method 1: Using CD4-CD4 eq
-    #print("\n" + "-"*60)
-    #print("Method 1: Using CD4-CD4 equation")
-    expected_cd4_cd4 = n4 * (p4_44/p4_total) + (all_seq-n4) * (p8_44/p8_total)
-    eq1 = sp.Eq(expected_cd4_cd4, cd4_cd4_obs)
+    eq1 = sp.Eq(n4 * (p4_44 / p4_total) + (all_seq - n4) * (p8_44 / p8_total), cd4_cd4_obs)
+    print(eq1)
+    solutions = []
+    df_sol = pd.DataFrame(solutions)
     #print(f"Equation: {eq1}")
-    solutions_1 = sp.solve(eq1, Pc)
+    for guess in [0.8,0.95]:
+        sol = sp.nsolve(eq1, Pc,guess)
+        sol_float = float(sol)
+        if 0 <= sol_float <= 1:
+            print(f"  Pc = {sol_float:.10f}")
+            if sol in df_sol:
+                pass
+            else:
+                sol1 = [{
+                    'n4': n4,
+                    'value': sol_float,
+                    'method':"cd4-cd4"}]
+                df_new = pd.DataFrame(sol1)
+                df_sol = pd.concat([df_sol,df_new],ignore_index=True)
     #print(f"\nSolutions from CD4-CD4 constraint:")
-    for sol in solutions_1:
-        try:
-            sol_float = float(sol)
-            if 0 <= sol_float <= 1:
-                print(f"  Pc = {sol_float:.10f}")
-                solutions.append(sol_float)
-        except:
-            print(float(sol))
-            pass
-
+    
     # Method 2: Using CD8-CD8 eq
-    #print("\n" + "-"*60)
-    #print("Method 2: Using CD8-CD8 equation")
     expected_cd8_cd8 = n4 * (p4_88/p4_total) + (all_seq-n4) * (p8_88/p8_total)
     eq2 = sp.Eq(expected_cd8_cd8, cd8_cd8_obs)
-    #print(f"Equation: {eq2}")
-
-    solutions_2 = sp.solve(eq2, Pc)
-    #print(f"\nSolutions from CD8-CD8 constraint:")
-    for sol in solutions_2:
+    for guess in [0.8,0.95]:
         try:
+            sol = sp.nsolve(eq2, Pc,guess)
             sol_float = float(sol)
             if 0 <= sol_float <= 1:
                 print(f"  Pc = {sol_float:.10f}")
-                solutions.append(sol_float)
+                if sol in solutions:
+                    pass
+                else:
+                    sol2 = [{
+                        'n4': n4,
+                        'value': sol_float,
+                        'method': "cd8-cd8"}]
+                    df_new = pd.DataFrame(sol2)
+                    df_sol = pd.concat([df_sol,df_new],ignore_index=True)
         except:
-            print("heree")
             pass
-
+            
+    
     # Method 3: Using CD4-CD8 count
     #print("\n" + "-"*60)
     #print("Method 3: Using CD4-CD8 equation")
     expected_cd4_cd8 = n4 * (p4_48/p4_total) + (all_seq-n4) * (p8_48/p8_total)
     eq3 = sp.Eq(expected_cd4_cd8, cd4_cd8_obs)
     #print(f"Equation: {eq3}")
-
-    solutions_3 = sp.solve(eq3, Pc)
+    
+    #solutions_3 = sp.solve(eq3, Pc)
     #print(f"\nSolutions from CD4-CD8 constraint:")
-    for sol in solutions_3:
-        try:
-            sol_float = float(sol)
-            if 0 <= sol_float <= 1:
-                print(f"  Pc = {sol_float:.10f}")
-                solutions.append(sol_float)
-        except:
-            print("heree")
-            pass
-    print(n4, solutions)
-    return solutions
+    for guess in [0.8,0.95]:
+        sol = sp.nsolve(eq3, Pc,guess)
+        sol_float = float(sol)
+        if 0 <= sol_float <= 1:
+            print(f"  Pc = {sol_float:.10f}")
+            if sol in solutions:
+                pass
+            else:
+                sol3 = [{
+                    'n4': n4,
+                    'value': sol_float,
+                    'method':"cd4-cd8"}]
+                df_new = pd.DataFrame(sol3)
+                df_sol = pd.concat([df_sol,df_new],ignore_index=True)
+    
+    #print(solutions)
+    #df_sol = pd.DataFrame(solutions)
+    print(df_sol)
+    return df_sol
 
 def verify_solution(Pc_val, n4_val, n8_val, c44, c48, c88):
     # Verify the solution
@@ -125,18 +140,59 @@ def verify_solution(Pc_val, n4_val, n8_val, c44, c48, c88):
     print(f"  Total: {exp_44+exp_48+exp_88:.4f}")
     
     return exp_44, exp_48, exp_88
-"""
-for n4 in range(337,386):
+
+sol = []
+df_sol_all = pd.DataFrame(sol)
+for n4 in range(337,387):
     n8 = all_seq - n4
-    solutions_1 = solvingEq(n4,"a")
+    df_sol_new = solvingEq(n4,"a")
     # Verify valid solutions from each method
-    if solutions_1:
-        try:
-            for sol in solutions_1:
-                sol_float = float(sol)
-                if 0 <= sol_float <= 1:
-                    verify_solution(sol_float, n4, all_seq-n4)
-        except:
-            pass
-"""
-soloo = solvingEq(386,"a")
+    # try:
+    #     for sol in df_sol_new:
+    #             sol_float = float(sol)
+    #             if 0 <= sol_float <= 1:
+    #                 verify_solution(sol_float, n4, all_seq-n4)
+    #     except:
+    #         pass
+    df_sol_all = pd.concat([df_sol_all,df_sol_new],ignore_index=True)
+
+print("\n" + "="*60)
+print(df_sol_all)
+#df_sol_all.to_csv("250930_pc_estim_n4_given.csv", index=False)
+#soloo = solvingEq(372,"a")
+#df_ci = pd.DataFrame(ci)
+
+import matplotlib.pyplot as plt
+
+# Assuming your dataframe is called 'df'
+plt.figure(figsize=(10, 6))
+
+## all 
+for method in df_sol_all['method'].unique():
+    mask = df_sol_all['method'] == method
+    method_data = df_sol_all[mask].sort_values('value')  # Sort by x-axis for proper line plotting
+    plt.plot(method_data['value'], method_data['n4'], marker='o', label=method, linewidth=2)
+
+#plt.scatter(df_sol_all['value'], df_sol_all['n4'])
+plt.xlabel('Pc')
+plt.ylabel('true_cd4')
+plt.legend()
+plt.title('Estimating Pc while true_cd4 fixed')
+plt.grid(True, alpha=0.3)
+plt.show()
+
+colors = ['blue', 'red', 'green']
+i=0
+for method in df_sol_all['method'].unique():
+    df_filtered = df_sol_all[df_sol_all['method'] == method]
+    plt.scatter(df_filtered['value'], df_filtered['n4'], color=colors[i])
+    plt.xlabel('Pc')
+    plt.ylabel('true_cd4')
+    plt.title(f"Estimating Pc while true_cd4 fixed from {method} eq")
+    plt.grid(True, alpha=0.3)
+    plt.show()
+    i += 1
+
+
+
+#plt.show()
