@@ -1,6 +1,10 @@
 # SUBSTITUTING N4 AND LOOKING AT PC
 import sympy as sp
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm
+
 
 
 def solvingEq(n4,chain,obs_counts,all_seq):
@@ -133,20 +137,79 @@ def verify_solution(Pc_val, n4_val, n8_val, c44, c48, c88,obs_counts):
     
     return exp_44, exp_48, exp_88
 
+def calculate_cd4_cd4(Pc_val, n4_val, all_seq, chain):
+    """Calculate expected CD4-CD4 count for given Pc and n4"""
+    if chain == "a":
+        c44 = 10*9 / (15*14)
+        c48 = 10*5 / (15*14)
+        c88 = 5*4 / (15*14)
+    elif chain == "b":
+        c44 = 21*20 / (31*30)
+        c48 = 21*10 / (31*30)
+        c88 = 10*9 / (31*30)
+    
+    n8_val = all_seq - n4_val
+    
+    # For CD4 biased sequences
+    p4_44_val = Pc_val**2 * c44
+    p4_48_val = 2*Pc_val*(1-Pc_val) * c48
+    p4_88_val = (1-Pc_val)**2 * c88
+    p4_total_val = p4_44_val + p4_48_val + p4_88_val
+    
+    # For CD8 biased sequences
+    p8_44_val = (1-Pc_val)**2 * c44
+    p8_48_val = 2*Pc_val*(1-Pc_val) * c48
+    p8_88_val = Pc_val**2 * c88
+    p8_total_val = p8_44_val + p8_48_val + p8_88_val
+    
+    exp_44 = n4_val * (p4_44_val/p4_total_val) + n8_val * (p8_44_val/p8_total_val)
+    
+    return exp_44
+
+def create_heatmap(all_seq, chain, target_cd4_cd4=337):
+    """Create heatmap of CD4-CD4 counts across n4 and Pc values"""
+    # Create grid
+    n4_values = np.arange(278, all_seq + 1)
+    pc_values = np.linspace(0.5, 1.0, 100)
+    
+    # Calculate CD4-CD4 for each combination
+    cd4_cd4_grid = np.zeros((len(n4_values), len(pc_values)))
+    
+    for i, n4 in enumerate(n4_values):
+        for j, pc in enumerate(pc_values):
+            cd4_cd4_grid[i, j] = calculate_cd4_cd4(pc, n4, all_seq, chain)
+    
+    # Create heatmap
+    plt.figure(figsize=(12, 8))
+    
+    # Use diverging colormap centered at target value
+    # Use diverging colormap centered at target value
+    norm = TwoSlopeNorm(vcenter=target_cd4_cd4, vmin=cd4_cd4_grid.min(), vmax=cd4_cd4_grid.max())
+    
+    
+    im = plt.imshow(cd4_cd4_grid, aspect='auto', origin='lower',
+                    extent=[pc_values.min(), pc_values.max(), n4_values.min(), n4_values.max()],
+                    cmap='RdYlBu_r', norm=norm)
+    
+    plt.colorbar(im, label='Expected CD4-CD4 Count')
+    plt.xlabel('Pc', fontsize=12)
+    plt.ylabel('True CD4 (n4)', fontsize=12)
+    plt.title(f'CD4-CD4 Count Heatmap (Target: {target_cd4_cd4})', fontsize=14)
+    
+    # Add contour line for target value
+    contour = plt.contour(pc_values, n4_values, cd4_cd4_grid, 
+                         levels=[target_cd4_cd4], colors='black', linewidths=2)
+    plt.clabel(contour, inline=True, fontsize=10, fmt=f'{target_cd4_cd4}')
+    
+    plt.tight_layout()
+    plt.show()
+
 def generate_table(all_seq,chain,counts):
     sol = []
     df_sol_all = pd.DataFrame(sol)
     for n4 in range(278,all_seq+1):
         #n8 = all_seq - n4
         df_sol_new = solvingEq(n4,chain,counts,all_seq)
-    # Verify valid solutions from each method
-    # try:
-    #     for sol in df_sol_new:
-    #             sol_float = float(sol)
-    #             if 0 <= sol_float <= 1:
-    #                 verify_solution(sol_float, n4, all_seq-n4)
-    #     except:
-    #         pass
         df_sol_all = pd.concat([df_sol_all,df_sol_new],ignore_index=True)
 
     print("\n" + "="*60)
@@ -155,21 +218,16 @@ def generate_table(all_seq,chain,counts):
     #df_sol_all.to_csv(filename, index=False)
 
     return df_sol_all
-#soloo = solvingEq(372,"a")
-#df_ci = pd.DataFrame(ci)
 
-import matplotlib.pyplot as plt
 def draw_plots(df):
-# Assuming your dataframe is called 'df'
     plt.figure(figsize=(10, 6))
 
     ## all 
     for method in df['method'].unique():
         mask = df['method'] == method
-        method_data = df[mask].sort_values('value')  # Sort by x-axis for proper line plotting
+        method_data = df[mask].sort_values('value')
         plt.plot(method_data['value'], method_data['n4'], marker='o', label=method, linewidth=2)
 
-    #plt.scatter(df_sol_all['value'], df_sol_all['n4'])
     plt.xlabel('Pc')
     plt.ylabel('true_cd4')
     plt.legend()
@@ -191,15 +249,16 @@ def draw_plots(df):
         i += 1
 
 ##### ALPHA ############################################################################################
-#n4 = 337
-# Observed counts
 obs_alpha = [337,39,10]
 all_seq_a = 386
 
+# Generate original plots
 df_alpha = generate_table(all_seq_a,"a",obs_alpha)
 print(df_alpha)
 draw_plots(df_alpha)
 
+# Create heatmap
+create_heatmap(all_seq_a, "a", target_cd4_cd4=337)
 
 ##### BETA #############################################################################################
 obs_beta = [89,21,4]
@@ -208,6 +267,4 @@ all_seq_b = 114
 #df_beta = generate_table(all_seq_b,"b",obs_beta)
 #print(df_beta)
 #draw_plots(df_beta)
-
-
-#plt.show()
+#create_heatmap(all_seq_b, "b", target_cd4_cd4=89)
