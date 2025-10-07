@@ -14,6 +14,7 @@ print(df_sol)
 for i in range(5):
     n4,value,depth = df_sol.iloc[0,0],df_sol.iloc[0,1],df_sol.iloc[0,2]
     print(n4,value,depth)
+    
 
 row = df_sol.iloc[0]
 print(row.iloc[0])

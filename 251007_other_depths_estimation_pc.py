@@ -214,7 +214,7 @@ def eqSolving(eq1,eq2,eq3,depth):
                     else:
                         sol3 = [{
                             'n4': sol_n4_float,
-                            'value': sol_Pc_float,
+                            'Pc_val': sol_Pc_float,
                             'depth':depth,
                             'equation':labels[i]}]
                         df_new = pd.DataFrame(sol3)
@@ -261,13 +261,22 @@ def main():
         eq2 = sp.Eq(n4 * (p4[maxdepth] / p4_all) + (all_seq - n4) * (p8[maxdepth] / p8_all), cd8_cd8)
         eq3 = sp.Eq(n4 * (p4[1]/p4_all) + (all_seq - n4) * (p8[1] / p8_all),cd8_1_mix)
         solutions,df_sol = eqSolving(eq1,eq2,eq3,maxdepth)
+        # Apply testing function and get CD4/CD8 counts for each solution
+        cd4_counts, cd8_counts = testing(df_sol,coefficients,input_r)
+        
+        # Add the counts as new columns to df_sol
+        df_sol['cd4_cd4_calculated'] = cd4_counts
+        df_sol['cd8_cd8_calculated'] = cd8_counts
+
         df_final = pd.concat([df_final,df_sol],ignore_index=True)
-        testing(solutions,coefficients,input_r)
+        #testing(solutions,coefficients,input_r)
 
     print("\n" + "*"*60)
     print(df_final)
+    filename = "251007_"+chain[0]+"_depths_pc_n4_calculated.csv"
+    df_final.to_csv(filename)
 
-def testing(solutions,coeffs,input_r):
+def testing(df_sol,coeffs,input_r):
 # TESTING
     maxdepth = input_r[0]
     s4,s8 = input_r[1],input_r[2]
@@ -284,8 +293,12 @@ def testing(solutions,coeffs,input_r):
     print("TESTING SOLUTIONS")
     print("="*50)
 #solutions,df_sol = eqSolving(eq1,eq2,eq3)
-    len(solutions)
-    for i, (Pc_val, n4_val) in enumerate(solutions):
+    cd4_cd4_counts = []
+    cd8_cd8_counts = []
+    n4_val_all,Pc_val_all = df_sol['n4'], df_sol['Pc_val']
+    #i = 0
+    for i in range(len(df_sol['n4'])):
+        n4_val,Pc_val = n4_val_all[i],Pc_val_all[i]
         print(f"\nTesting Solution {i+1}: Pc = {Pc_val:.6f}, n4 = {n4_val:.6f}")
     
     # Substitute the solution values into the probability expressions
@@ -301,16 +314,16 @@ def testing(solutions,coeffs,input_r):
             p8_val.append(p8[k].subs(Pc, Pc_val))
             p8_all_val = p8_all_val + p8_val[k]
     
-    # Calculate CD4-CD4 count (should equal cd4_cd4)
         cd4_cd4_count = n4_val * (p4_val[0] / p4_all_val) + (all_seq - n4_val) * (p8_val[0] / p8_all_val)
-    
-    # Calculate CD8-CD8 count (should equal cd8_cd8)
         cd8_cd8_count = n4_val * (p4_val[maxdepth] / p4_all_val) + (all_seq - n4_val) * (p8_val[maxdepth] / p8_all_val)
-    
+        cd4_cd4_counts.append(float(cd4_cd4_count))
+        cd8_cd8_counts.append(float(cd8_cd8_count))
+
         print(f"  CD4-CD4 count: {float(cd4_cd4_count)} (expected: {cd4_cd4})")
         print(f"  CD8-CD8 count: {float(cd8_cd8_count)} (expected: {cd8_cd8})")
         print(f"  Error in CD4-CD4: {abs(float(cd4_cd4_count) - cd4_cd4)}")
         print(f"  Error in CD8-CD8: {abs(float(cd8_cd8_count) - cd8_cd8)}")
+        #i = i+1
 
-
+    return cd4_cd4_counts, cd8_cd8_counts
 main()
