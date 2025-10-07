@@ -1,4 +1,6 @@
 import sympy as sp
+import pandas as pd
+
 Pc, n4 = sp.symbols('Pc n4')
 ###################################################################################################################
 #### 0. Input
@@ -10,11 +12,13 @@ print("Number of CD4 samples:",end=" ")
 s4 = int(input())
 print("Number of CD8 samples:",end=" ")
 s8 = int(input())
-print("Number of CD4-CD4 sequences:",end=" ")
+print("Number of CD4_only sequences:",end=" ")
 cd4_cd4 = int(input())
-print("Number of CD8-CD8 sequences:",end=" ")
+print("Number of CD8_only sequences:",end=" ")
 cd8_cd8 = int(input())
 all = s4+s8
+print("Number of sequences with exactly 1 CD8:",end=" ")
+cd8_1_mix = int(input())
 print("Number of all seq:",end=" ")
 all_seq = int(input())
 
@@ -120,6 +124,7 @@ print(p8_all)
 # Equations
 eq1 = sp.Eq(n4 * (p4[0] / p4_all) + (all_seq - n4) * (p8[0] / p8_all), cd4_cd4)
 eq2 = sp.Eq(n4 * (p4[maxdepth] / p4_all) + (all_seq - n4) * (p8[maxdepth] / p8_all), cd8_cd8)
+eq3 = sp.Eq(n4 * (p4[1]/p4_all) + (all_seq - n4) * (p8[1] / p8_all),cd8_1_mix)
 # print("=====================================")
 # print(eq1)
 # print(eq2)
@@ -129,26 +134,56 @@ eq2 = sp.Eq(n4 * (p4[maxdepth] / p4_all) + (all_seq - n4) * (p8[maxdepth] / p8_a
 a_expr = sp.solve(eq1, n4)[0] # solve eq1
 # Substitute into eq2
 eq2_sub = sp.simplify(eq2.subs(n4, a_expr))
+eq3_sub = sp.simplify(eq3.subs(n4,a_expr))
 
-
-solutions = []
-try:
+solutions1 = []
+df_sol = pd.DataFrame(solutions1)
+labels = ["cd4_only, cd8_only","cd4_only, cd8_1_mix"]
+i = 0
+for eq in (eq2_sub,eq3_sub):
+    solutions = []
+    try:
     # solve returns a list of solutions
-    xv_solutions = sp.solve(eq2_sub, Pc)
+        xv_solutions = sp.solve(eq, Pc)
     
-    for xv in xv_solutions:
+        for xv in xv_solutions:
         # Filter for real, finite solutions
-        if xv.is_real and xv.is_finite:
-            av = a_expr.subs(Pc, xv)
-            if av.is_real and av.is_finite:
-                solutions.append((float(xv), float(av)))
-except:
-    pass
+            if xv.is_real and xv.is_finite:
+                av = a_expr.subs(Pc, xv)
+                if av.is_real and av.is_finite:
+                    solutions.append((float(xv), float(av)))
+    except:
+        pass
 
-print("Solutions (Pc, n4):")
-for s in solutions:
-    print(s)
+    print("Solutions 1 (Pc, n4):")
+    for s in solutions:
+        print(s)
 
+    for guess in [0.01, 0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]:
+        try:
+            sol = sp.nsolve(eq, Pc,guess)
+            av = a_expr.subs(Pc, sol)
+            sol_Pc_float,sol_n4_float = float(sol),float(av)
+            if 0 <= sol_Pc_float <= 1:
+                print(f"  Pc = {sol_Pc_float:.10f}")
+                if sol in solutions:
+                    pass
+                else:
+                    sol3 = [{
+                        'n4': sol_n4_float,
+                        'value': sol_Pc_float,
+                        'depth':maxdepth,
+                        'equation':labels[i]}]
+                    df_new = pd.DataFrame(sol3)
+                    df_sol = pd.concat([df_sol,df_new],ignore_index=True)
+        except:
+            pass
+    print(df_sol)
+    i = i +1
+
+print("\n" + "*"*50)
+print(df_sol)
+print("*"*50)
 
 # TESTING
 print("\n" + "="*50)
