@@ -3,49 +3,65 @@ import pandas as pd
 #import pandas as pd
 
 # Read the CSV file into a DataFrame
-df = pd.read_csv('251007_layers_alpha.csv')
+#df = pd.read_csv('251007_layers_alpha.csv')
 
 # Access data in the DataFrame using column names or indexing
-print(df['depth'])
-print(df.iloc[0])  # Access first row
-print(df.iloc[0,0])
 
 #Pc, n4 = sp.symbols('Pc n4')
 ###################################################################################################################
 #### 0. Input
+# depth, seqcount, cd4_only, cd8_only, cd8_1_mix
 
-print("Insert depth:",end=" ")
-maxdepth = int(input())
+def input_function(depth,chain):  
+    #chain = input()
+    if chain == "alpha":
+        s4 = 10
+        s8 = 5
+        df = pd.read_csv('251007_layers_alpha.csv')
+    elif chain == "beta":
+        s4 = 21
+        s8 = 10
+        df = pd.read_csv('251007_layers_beta.csv')
+    else:
+        raise Exception("wrong input")
+    i = depth - 2
+    row = df.iloc[i]
+    # depth, seqcount, cd4_only, cd8_only, cd8_1_mix
+    # Access data in the DataFrame using column names or indexing
+    maxdepth = df.iloc[i,0]
+    cd4_cd4,cd8_cd8,cd8_1_mix = df.iloc[i,2],df.iloc[i,3],df.iloc[i,4]
+    all_seq = df.iloc[i,1]
+    # print("Insert depth:",end=" ")
+    # maxdepth = int(input())
 
-print("Number of CD4 samples:",end=" ")
-s4 = int(input())
-print("Number of CD8 samples:",end=" ")
-s8 = int(input())
-print("Number of CD4_only sequences:",end=" ")
-cd4_cd4 = int(input())
-print("Number of CD8_only sequences:",end=" ")
-cd8_cd8 = int(input())
-all = s4+s8
-print("Number of sequences with exactly 1 CD8:",end=" ")
-cd8_1_mix = int(input())
-print("Number of all seq:",end=" ")
-all_seq = int(input())
+    # print("Number of CD4 samples:",end=" ")
+    # s4 = int(input())
+    # print("Number of CD8 samples:",end=" ")
+    # s8 = int(input())
+    # print("Number of CD4_only sequences:",end=" ")
+    # cd4_cd4 = int(input())
+    # print("Number of CD8_only sequences:",end=" ")
+    # cd8_cd8 = int(input())
+    # all = s4+s8
+    # print("Number of sequences with exactly 1 CD8:",end=" ")
+    # cd8_1_mix = int(input())
+    # print("Number of all seq:",end=" ")
+    # all_seq = int(input())
+    input_row = [maxdepth,s4,s8,cd4_cd4,cd8_cd8,cd8_1_mix,all_seq]
+    print(input_row)
+    return input_row
+
 
 ###################################################################################################################
 #### 1. Generating coefficients ###
 
 ## numerator ##
-
-
 def coeff_generator(currentS4, currentS8, sample):
     if sample == "cd4":
         return currentS4 - 1, currentS8, currentS4
     else:
         return currentS4, currentS8 - 1, currentS8
-
-# coefficients = []
-# visited = set()
-
+# needs empty coefficient [] and visited () before starts
 def dfs_coefficients(currentS4, currentS8, depth, maxDepth,coefficients,visited,coeff=1):
     #print(currentS4,currentS8,depth)
     if depth == maxDepth:
@@ -92,8 +108,8 @@ print("*"*30)
 from math import factorial
 def pascal(depth):
     coeff_pascal = []
-    for j in range(maxdepth+1):
-        newCoeff = factorial(maxdepth)//(factorial(j)*factorial(maxdepth-j))
+    for j in range(depth+1):
+        newCoeff = factorial(depth)//(factorial(j)*factorial(depth-j))
         print(newCoeff,end=" ")
         coeff_pascal.append(newCoeff)
     print("\n")
@@ -154,7 +170,7 @@ def cd8_bias(c_pascal,c_rac,depth):
 # print(eq2)
 # print("=====================================")
 
-def eqSolving(eq1,eq2,eq3):
+def eqSolving(eq1,eq2,eq3,depth):
     Pc, n4 = sp.symbols('Pc n4')
 
     # Substitute from one equation to another
@@ -167,8 +183,8 @@ def eqSolving(eq1,eq2,eq3):
     df_sol = pd.DataFrame(solutions1)
     labels = ["cd4_only, cd8_only","cd4_only, cd8_1_mix"]
     i = 0
+    solutions = []
     for eq in (eq2_sub,eq3_sub):
-        solutions = []
         try:
     # solve returns a list of solutions
             xv_solutions = sp.solve(eq, Pc)
@@ -199,7 +215,7 @@ def eqSolving(eq1,eq2,eq3):
                         sol3 = [{
                             'n4': sol_n4_float,
                             'value': sol_Pc_float,
-                            'depth':maxdepth,
+                            'depth':depth,
                             'equation':labels[i]}]
                         df_new = pd.DataFrame(sol3)
                         df_sol = pd.concat([df_sol,df_new],ignore_index=True)
@@ -209,6 +225,8 @@ def eqSolving(eq1,eq2,eq3):
         i = i +1
 
     print("\n" + "*"*50)
+    print(solutions)
+    print("*"*50)
     print(df_sol)
     print("*"*50)
     return solutions,df_sol
@@ -216,27 +234,45 @@ def eqSolving(eq1,eq2,eq3):
 
 
 def main():
-    coefficients = []
-    visited = set()
-    # Generate all coefficients up to depth 5
-    dfs_coefficients(s4, s8, 0, maxdepth,coefficients,visited)
-    print(list(coefficients))
-    Pc, n4 = sp.symbols('Pc n4')
-    print("******** CD4 BIASED SEQUENCES ********")
-    coeff_pascal = pascal(maxdepth)
-    coeff_rac = coeff_rac_produce(s4,s8,maxdepth,coefficients)
-    p4,p4_all = cd4_bias(coeff_pascal,coeff_rac,maxdepth)
-    print("******** CD8 BIASED SEQUENCES ********")
-    p8,p8_all = cd8_bias(coeff_pascal,coeff_rac,maxdepth)
-    # Equations
-    eq1 = sp.Eq(n4 * (p4[0] / p4_all) + (all_seq - n4) * (p8[0] / p8_all), cd4_cd4)
-    eq2 = sp.Eq(n4 * (p4[maxdepth] / p4_all) + (all_seq - n4) * (p8[maxdepth] / p8_all), cd8_cd8)
-    eq3 = sp.Eq(n4 * (p4[1]/p4_all) + (all_seq - n4) * (p8[1] / p8_all),cd8_1_mix)
-    solutions,df_sol = eqSolving(eq1,eq2,eq3)
-    testing(solutions,coeffs=coefficients)
+    df_final = pd.DataFrame([])
+    print("Write the name of TCR chain: ")
+    chain = input()
+    for i in range(2,6):
 
-def testing(solutions,coeffs):
+        coefficients = []
+        visited = set()
+        # Generate all coefficients up to depth 5
+        input_r = input_function(i,chain)
+        #input_row = [maxdepth,s4,s8,cd4_cd4,cd8_cd8,cd8_1_mix,all_seq]
+        maxdepth = input_r[0]
+        s4,s8 = input_r[1],input_r[2]
+        cd4_cd4,cd8_cd8,cd8_1_mix = input_r[3],input_r[4],input_r[5]
+        all_seq = input_r[6]
+
+        dfs_coefficients(s4, s8, 0, maxdepth,coefficients,visited)
+        print(list(coefficients))
+        Pc, n4 = sp.symbols('Pc n4')
+        coeff_pascal = pascal(maxdepth)
+        coeff_rac = coeff_rac_produce(s4,s8,maxdepth,coefficients)
+        p4,p4_all = cd4_bias(coeff_pascal,coeff_rac,maxdepth)
+        p8,p8_all = cd8_bias(coeff_pascal,coeff_rac,maxdepth)
+        # Equations
+        eq1 = sp.Eq(n4 * (p4[0] / p4_all) + (all_seq - n4) * (p8[0] / p8_all), cd4_cd4)
+        eq2 = sp.Eq(n4 * (p4[maxdepth] / p4_all) + (all_seq - n4) * (p8[maxdepth] / p8_all), cd8_cd8)
+        eq3 = sp.Eq(n4 * (p4[1]/p4_all) + (all_seq - n4) * (p8[1] / p8_all),cd8_1_mix)
+        solutions,df_sol = eqSolving(eq1,eq2,eq3,maxdepth)
+        df_final = pd.concat([df_final,df_sol],ignore_index=True)
+        testing(solutions,coefficients,input_r)
+
+    print("\n" + "*"*60)
+    print(df_final)
+
+def testing(solutions,coeffs,input_r):
 # TESTING
+    maxdepth = input_r[0]
+    s4,s8 = input_r[1],input_r[2]
+    cd4_cd4,cd8_cd8,cd8_1_mix = input_r[3],input_r[4],input_r[5]
+    all_seq = input_r[6]
     Pc, n4 = sp.symbols('Pc n4')
     print("******** CD4 BIASED SEQUENCES ********")
     coeff_pascal = pascal(maxdepth)
