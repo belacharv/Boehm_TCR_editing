@@ -40,7 +40,7 @@ def create_heatmap(all_seq, chain, observed):
     """Create heatmap of CD4-CD4 counts across n4 and Pc values"""
     # Create grid - use continuous values for both axes
     n4_values = np.linspace(0, all_seq, 1000)  # Continuous n4 values
-    pc_values = np.linspace(0.0, 1.0, 1000)  # Continuous Pc values
+    pc_values = np.linspace(0.5, 1.0, 1000)  # Continuous Pc values
 
     cd4_cd4_diff_grid = np.zeros((len(n4_values), len(pc_values)))
     cd4_cd8_diff_grid = np.zeros((len(n4_values), len(pc_values)))
@@ -63,7 +63,7 @@ def create_heatmap(all_seq, chain, observed):
     # Use colormap where 0 (perfect match) is dark blue/green and large differences are red
     for i in range(0,len(diff_grids)):
         contour = plt.contour(pc_values, n4_values, diff_grids[i], 
-                         levels=10, colors='black', linewidths=2)
+                         levels=15, colors='black', linewidths=2)
         plt.clabel(contour, inline=True, fontsize=10)#, #fmt=f'{observed[i]}')
         contour = plt.contour(pc_values, n4_values, diff_grids[i], 
                          levels=[0.05], colors='black', linewidths=2)
@@ -78,7 +78,7 @@ def create_heatmap(all_seq, chain, observed):
         print(diff_grids[i].min(), diff_grids[i].max())
         plt.colorbar(im, label=f'|Observed - Expected| {label[i]} Count')
         plt.xlabel('Pc', fontsize=12)
-        plt.ylabel('True CD4 (n4)', fontsize=12)
+        plt.ylabel('True CD4', fontsize=12)
         plt.title(f'{label[i]} Difference from Observed value {observed[i]}', fontsize=14)
     
         # Add contour line for zero difference (exact match)
@@ -86,6 +86,9 @@ def create_heatmap(all_seq, chain, observed):
         #plt.clabel(contour, inline=True, fontsize=10, fmt='Perfect match')
     
         plt.tight_layout()
+        #plt.show()
+        name = str(chain)+"_0"+str(i+1)+"_heatmap.png"
+        plt.savefig(name)
         plt.show()
 
 ##### ALPHA ############################################################################################
@@ -107,4 +110,4 @@ all_seq_b = 114
 #df_beta = generate_table(all_seq_b,"b",obs_beta)
 #print(df_beta)
 #draw_plots(df_beta)
-#create_heatmap(all_seq_b, "b", target_cd4_cd4=89)
+create_heatmap(all_seq_b, "b", obs_beta)
