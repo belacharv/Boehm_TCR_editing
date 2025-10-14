@@ -1,9 +1,6 @@
 # SUBSTITUTING N4 AND LOOKING AT PC
-import sympy as sp
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import TwoSlopeNorm     
+import matplotlib.pyplot as plt   
 
 def calculate_exp(Pc_val, n4_val, all_seq, chain):
     """Calculate expected CD4-CD4 count for given Pc and n4"""
