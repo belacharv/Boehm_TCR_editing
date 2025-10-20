@@ -6,11 +6,14 @@ import pandas as pd
 #### 0. Input
 # input_row = [maxdepth, s4, s8, all_seq] + cd8_values
 
+# input function that for each depth return information about counts specific for that depth(=layer)
+    # input_row = [maxdepth, s4, s8, all_seq] + cd8_values
 def input_function(depth,chain):  
-    #chain = input()
+    
+    # read the counts of each group in each layer
     if chain == "alpha":
-        s4 = 10
-        s8 = 5
+        s4 = 10 # cd4 samples
+        s8 = 5 # cd8 samples
         df = pd.read_csv('251016_a_seq_counts_distribution_groups_layers.csv')
     elif chain == "beta":
         s4 = 21
@@ -18,16 +21,19 @@ def input_function(depth,chain):
         df = pd.read_csv('251016_b_seq_counts_distribution_groups_layers.csv')
     else:
         raise Exception("wrong input")
+    # we start from 2nd layer (seq present in 2 samples), we need to adjust for beginning of the list
     i = depth - 2
-    row = df.iloc[i]
-    # depth, seqcount, cd4_only, cd8_only, cd8_1_mix
-    # Access data in the DataFrame using column names or indexing
-    # print("Insert depth:",end=" ")
-    # maxdepth = int(input())
-     # Get depth and seqcount
     maxdepth = df.iloc[i, 0]
     all_seq = df.iloc[i, 1]
     cd8_values = df.iloc[i, 2:].tolist()
+
+    # vital row storing all the info specific for each layer
+        # maxdepth refers to current layer
+        # all_seq is Sequence count in that particular layer
+        # cd8_values are group divided on the amount of cd8s in that group
+            # cd8_0 (cd4_only), cd8_1, cd8_2 ... cd8_max (all the samples of cd8 present)
+                # cd8_max means that in lower layers than s8 it's cd8_only
+                # in higher layers it's all the samples of cd8 present
     input_row = [maxdepth, s4, s8, all_seq] + cd8_values
     print(input_row)
     return input_row
@@ -35,6 +41,7 @@ def input_function(depth,chain):
 
 ###################################################################################################################
 #### 1. Generating coefficients ###
+# each probability is influenced by the s4 and s8 constants
 
 ## numerator ##
 def coeff_generator(currentS4, currentS8, sample):
@@ -42,11 +49,10 @@ def coeff_generator(currentS4, currentS8, sample):
         return currentS4 - 1, currentS8, currentS4
     else:
         return currentS4, currentS8 - 1, currentS8
+    
 # needs empty coefficient [] and visited () before starts
 def dfs_coefficients(currentS4, currentS8, depth, maxDepth,coefficients,visited,coeff=1):
-    #print(currentS4,currentS8,depth)
     if depth == maxDepth:
-        #print(coeff)
         if coeff not in visited:
             coefficients.append(coeff)
             visited.add(coeff)
@@ -63,8 +69,6 @@ def dfs_coefficients(currentS4, currentS8, depth, maxDepth,coefficients,visited,
     return 
 
 # Generate all coefficients up to depth 5
-# dfs_coefficients(s4, s8, 0, maxdepth)
-# print(list(coefficients))
 
 def coeff_rac_produce(s4,s8,depth,coefficients):
     ## denominator ##
@@ -84,7 +88,15 @@ def coeff_rac_produce(s4,s8,depth,coefficients):
     return coeff_rac
 
 ###################################################################################################################
-### 2. PASCAL'S TRIANGLE
+### 2. PASCAL'S TRIANGLE ###
+## We use Pascal's triangle values in this code for the binomial theorem
+# then, we use these values in equations later
+# i.e. 
+       # 1
+      # 1 1
+     # 1 2 1    # for 2nd layer
+    # 1 3 3 1   # for 3rd layer
+
 print("*"*30)
 from math import factorial
 def pascal(depth):
@@ -105,7 +117,7 @@ def pascal(depth):
 # print("******** CD4 BIASED SEQUENCES ********")
 # coeff_pascal = pascal(maxdepth)
 # coeff_rac = coeff_rac_produce(s4,s8,maxdepth)
-
+# generating different probabilities for each group
 def cd4_bias(c_pascal,c_rac,depth):
     Pc, n4 = sp.symbols('Pc n4')
     p4 = []
@@ -144,13 +156,13 @@ def cd8_bias(c_pascal,c_rac,depth):
 
 def eqSolving(eq1,eq2,depth,label):
     Pc, n4 = sp.symbols('Pc n4')
-    print("tu")
+    print("first solved")
     # Substitute from one equation to another
     a_expr = sp.solve(eq1, n4)[0] # solve eq1
-    print("tutu")
+    print("second solved")
     # Substitute into eq2
     eq2_sub = sp.simplify(eq2.subs(n4, a_expr))
-    print("tututu")
+    print("third solved")
     #eq3_sub = sp.simplify(eq3.subs(n4,a_expr))
 
     solutions1 = []
@@ -221,11 +233,11 @@ def main():
         obs_val = input_r[4:]
         print("hiiiii")
         print(obs_val)
-        for i in range(len(obs_val)):
-            if obs_val[i] == "-":
-                obs_val[i] = None
+        for j in range(len(obs_val)):
+            if obs_val[j] == "-":
+                obs_val[j] = None
             else:
-                obs_val[i] = int(obs_val[i])
+                obs_val[j] = int(obs_val[j])
         print(obs_val)
         #cd4_cd4,cd8_cd8,cd8_1_mix = int(input_r[4]),input_r[6],input_r[5]
         #all_seq = input_r[3]
@@ -239,9 +251,11 @@ def main():
         p8,p8_all = cd8_bias(coeff_pascal,coeff_rac,maxdepth)
         # Equations
         obs_val_index = 0
+        print(len(obs_val))
         equations = []
-        while obs_val_index > len(obs_val) or obs_val[obs_val_index] != None:
+        while obs_val_index < len(obs_val) and obs_val[obs_val_index] != None:
             print(obs_val_index)
+            print(obs_val[obs_val_index])
             right_side_eq = obs_val[obs_val_index]
             eq = sp.Eq(n4 * (p4[obs_val_index] / p4_all) + (all_seq - n4) * (p8[obs_val_index] / p8_all), right_side_eq)
             equations.append(eq)
@@ -249,21 +263,28 @@ def main():
         #eq1 = sp.Eq(n4 * (p4[0] / p4_all) + (all_seq - n4) * (p8[0] / p8_all), cd4_cd4)
         #eq2 = sp.Eq(n4 * (p4[maxdepth] / p4_all) + (all_seq - n4) * (p8[maxdepth] / p8_all), cd8_cd8)
         #eq3 = sp.Eq(n4 * (p4[1]/p4_all) + (all_seq - n4) * (p8[1] / p8_all),cd8_1_mix)
-        solutions,df_sol = eqSolving(equations[0],equations[1],maxdepth,"CD8_0, CD8_1")
+        #df_sol = []
+        for cd8_val_eq in range(1,i+1):
+            print(cd8_val_eq)
+            method_name = "CD8_0, CD8_" + str(cd8_val_eq)
+            solutions,df_sol = eqSolving(equations[0],equations[cd8_val_eq],maxdepth,method_name)
+        #solu, df_sol1 = eqSolving(equations[0],equations[2],maxdepth,"CD8_0, CD8_1")
         # Apply testing function and get CD4/CD8 counts for each solution
-        #cd4_counts, cd8_counts = testing(df_sol,coefficients,input_r)
+            if df_sol.empty != True:
+                cd4_counts, cd8_counts = testing(df_sol,coefficients,input_r)
         
         # Add the counts as new columns to df_sol
-        #df_sol['cd4_cd4_calculated'] = cd4_counts
-        #df_sol['cd8_cd8_calculated'] = cd8_counts
+                df_sol['cd4_cd4_calculated'] = cd4_counts
+                df_sol['cd8_cd8_calculated'] = cd8_counts
+                df_final = pd.concat([df_final,df_sol],ignore_index=True)
 
         #df_final = pd.concat([df_final,df_sol],ignore_index=True)
         #testing(solutions,coefficients,input_r)
 
     print("\n" + "*"*60)
     print(df_final)
-    filename = "251007_"+chain[0]+"_depths_pc_n4_calculated.csv"
-    #csvdf_final.to_csv(filename)
+    filename = "2510200_"+chain[0]+"_depths_pc_n4_calculated.csv"
+    df_final.to_csv(filename)
 
 def testing(df_sol,coeffs,input_r):
 # TESTING
@@ -282,7 +303,6 @@ def testing(df_sol,coeffs,input_r):
     
     cd4_cd4 = obs_val[0] if obs_val[0] is not None else 0  # CD8_0 (which is CD4 only)
     cd8_cd8 = obs_val[maxdepth] if len(obs_val) > maxdepth and obs_val[maxdepth] is not None else 0  # CD8_maxdepth
-    
 
 
 
