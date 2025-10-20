@@ -200,7 +200,9 @@ def eqSolving(eq1,eq2,depth,label):
                         'n4': sol_n4_float,
                         'Pc_val': sol_Pc_float,
                         'depth':depth,
-                        'equation':label}]
+                        'equation':label,
+                        'expected_cd4':-1,
+                        'expected_cd8':-1}]
                     df_new = pd.DataFrame(sol3)
                     df_sol = pd.concat([df_sol,df_new],ignore_index=True)
         except:
@@ -301,7 +303,7 @@ def testing(df_sol,coeffs,input_r):
         else:
             obs_val[i] = float(obs_val[i])
     
-    cd4_cd4 = obs_val[0] if obs_val[0] is not None else 0  # CD8_0 (which is CD4 only)
+    cd4_cd4 = obs_val[0] if obs_val[0] is not None else 0  # CD8_0 (CD4_only)
     cd8_cd8 = obs_val[maxdepth] if len(obs_val) > maxdepth and obs_val[maxdepth] is not None else 0  # CD8_maxdepth
 
 
@@ -320,6 +322,7 @@ def testing(df_sol,coeffs,input_r):
     cd4_cd4_counts = []
     cd8_cd8_counts = []
     n4_val_all,Pc_val_all = df_sol['n4'], df_sol['Pc_val']
+    df_sol['expected_cd4'], df_sol['expected_cd8'] = cd4_cd4, cd8_cd8 
     #i = 0
     for i in range(len(df_sol['n4'])):
         n4_val,Pc_val = n4_val_all[i],Pc_val_all[i]
